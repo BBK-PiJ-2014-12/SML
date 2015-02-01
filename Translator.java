@@ -2,6 +2,7 @@ package sml;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
@@ -73,50 +74,44 @@ public class Translator {
 	// removed. Translate line into an instruction with label label
 	// and return the instruction
 	public Instruction getInstruction(String label) {
-		int s1; // Possible operands of the instruction
-		int s2;
-		int r;
-		int x;
 
 		if (line.equals(""))
 			return null;
 
 		String ins = scan();
-		switch (ins) {
-		case "add":
-			r = scanInt();
-			s1 = scanInt();
-			s2 = scanInt();
-			return new AddInstruction(label, r, s1, s2);
-		case "lin":
-			r = scanInt();
-			s1 = scanInt();
-			return new LinInstruction(label, r, s1);
-		case "sub":
-			r = scanInt();
-			s1 = scanInt();
-			s2 = scanInt();
-			return new SubInstruction(label, r, s1, s2);
-		case "mul":
-			r = scanInt();
-			s1 = scanInt();
-			s2 = scanInt();
-			return new MulInstruction(label, r, s1, s2);
-		case "div":
-			r = scanInt();
-			s1 = scanInt();
-			s2 = scanInt();
-			return new DivInstruction(label, r, s1, s2);
-		case "out":
-			s1 = scanInt();
-			return new OutInstruction(label, s1);
-		case "bnz":
-			s1 = scanInt();
-			String label2 = scan();
-			return new BnzInstruction(label, s1, label2); 
+		
+		try{
+			String instruct = "sml." + Character.toUpperCase(ins.charAt(0)) + ins.substring(1)+ "Instruction";
+			
+			Class<?> c = Class.forName(instruct);
+			Constructor<?> con = c.getConstructor(new Class[] { String.class, String.class });
+			Instruction instructionObject = (Instruction) con.newInstance(new Object[] {label, ins});
+			
+			Field [] f = c.getDeclaredFields();
+			Parameters parameters = new Parameters();
+			
+			while(line.trim().length() > 0) {
+				String nextParam = scan();
+				try{
+					int number = Integer.parseInt(nextParam);
+					parameters.addInt(number);
+				} catch (Exception e) {
+					parameters.addString(nextParam);
+				}
+			}
+			for(int i = 0; i < f.length; i++) {
+				f[i].setAccessible(true);
+				
+				if(f[i].getType().toString().equals("int")) {
+					f[i].setInt(instructionObject, parameters.removeInt());
+				} else {
+					f[i].set(instructionObject, parameters.removeStr());
+				}
+			}
+			return instructionObject;
+		} catch  (ClassNotFoundException | NoSuchMethodException | SecurityException | InvocationTargetException | IllegalAccessException | InstantiationException e1) {
+			e1.printStackTrace();
 		}
-
-		// You will have to write code here for the other instructions.
 
 		return null;
 	}
